@@ -1,7 +1,7 @@
 [project]
 name = "msp-mcp"
-version = "0.5.0"
-description = "MCP servers for the MSP stack: Datto RMM, ThreatLocker, Mimecast, Asset Panda, Portnox"
+version = "0.6.0"
+description = "MCP servers for the MSP stack: Datto RMM, ThreatLocker, Mimecast, Asset Panda, Portnox, CrowdStrike Falcon launcher"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -15,6 +15,7 @@ msp-mcp-assetpanda = "msp_mcp.assetpanda.server:main"
 msp-mcp-threatlocker = "msp_mcp.threatlocker.server:main"
 msp-mcp-mimecast = "msp_mcp.mimecast.server:main"
 msp-mcp-portnox = "msp_mcp.portnox.server:main"
+msp-mcp-crowdstrike = "msp_mcp.crowdstrike.server:main"
 
 [build-system]
 requires = ["hatchling"]

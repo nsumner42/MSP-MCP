@@ -10,7 +10,7 @@ One repo, one server per product, shared code for credentials, rate limiting and
 | Mimecast (`msp-mcp-mimecast`) | working: reads; guarded release / permit / greylisting bypass |
 | Asset Panda (`msp-mcp-assetpanda`) | working: read-only |
 | Portnox Cloud (`msp-mcp-portnox`) | working: reads; guarded block/unblock device, MAB MAC add/remove (writes tested as dry runs only) |
-| CrowdStrike Falcon | use the official [falcon-mcp](https://github.com/CrowdStrike/falcon-mcp) |
+| CrowdStrike Falcon (`msp-mcp-crowdstrike`) | launcher for the official [falcon-mcp](https://github.com/CrowdStrike/falcon-mcp), read-only by default |
 
 ## Credentials
 
@@ -137,6 +137,38 @@ dedicated local admin with only the rights needed. Base URL
 to block/unblock); dates come as `/Date(ms)/` and are converted to ISO. The full Swagger reference is only inside the tenant (Help > API REFERENCE).
 Portnox's own community MCP server (Docker, `portnox/portnox-mcp`, 81 tools, no read-only switch
 or dry run) was the reference for request shapes.
+
+## CrowdStrike Falcon
+
+We don't build this one: `msp_mcp.crowdstrike.server` runs CrowdStrike's own
+[falcon-mcp](https://github.com/CrowdStrike/falcon-mcp) (MIT) over stdio with our credential.
+falcon-mcp needs `mcp<2` and this repo uses mcp 2.x, so it gets its own venv, pinned (read the
+falcon-mcp changelog before raising the pin: tool names still change before 1.0):
+
+```powershell
+$fv = "$env:LOCALAPPDATA\MSP-MCP\falcon-venv"
+uv venv $fv --python 3.12
+uv pip install --python "$fv\Scripts\python.exe" falcon-mcp==0.19.0
+
+claude mcp add crowdstrike --scope user `
+  -e "UV_PROJECT_ENVIRONMENT=$env:LOCALAPPDATA\MSP-MCP\venv" `
+  -- uv --directory C:\AIProjects\MSP-MCP run --no-sync python -m msp_mcp.crowdstrike.server
+```
+
+- Credential: `CrowdStrikeFalconApi`, a Falcon API client (Support and resources > API clients
+  and keys; username = client ID, password = client secret). Its scopes are the real limit. For
+  reads: Alerts, Hosts, Host Groups, Prevention / Sensor Update / Firewall / Device Control /
+  Response / Content Update Policies, IOA / ML / Sensor Visibility Exclusions, Quarantined Files,
+  IOC Management, Vulnerabilities, Assets, Sensor Usage, Zero Trust Assessment, all **Read**.
+- Read-only: the launcher sets falcon-mcp's `--read-only` (no mutating tool is registered) unless
+  `MSP_MCP_CROWDSTRIKE_WRITES=1`. falcon-mcp's write tools have no dry run and no audit log of
+  their own; only the start with writes on is logged to our audit.log.
+- Modules: `CROWDSTRIKE_MODULES` (comma list; names from `falcon-mcp --help`), else
+  detections, hosts, hostgroups, policies, exclusions, quarantine, ioc, spotlight, discover,
+  sensorusage, zerotrustassessment. `rtr` (runs read-only commands on endpoints) is left out.
+- falcon-mcp authenticates at startup and exits on a bad key. `FALCON_BASE_URL` defaults to
+  US-1; falconpy follows the redirect to the tenant's own cloud. `FALCON_MCP_EXE` overrides the
+  path to falcon-mcp.exe.
 
 ## ThreatLocker tools
 
