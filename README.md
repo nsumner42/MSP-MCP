@@ -159,12 +159,13 @@ claude mcp add crowdstrike --scope user `
   and keys; username = client ID, password = client secret). Its scopes are the real limit. For
   reads: Alerts, Hosts, Host Groups, Prevention / Sensor Update / Firewall / Device Control /
   Response / Content Update Policies, IOA / ML / Sensor Visibility Exclusions, Quarantined Files,
-  IOC Management, Vulnerabilities, Assets, Sensor Usage, Zero Trust Assessment, all **Read**.
+  IOC Management, Assets, Sensor Usage, Zero Trust Assessment, all **Read**. Our licence has no
+  Vulnerabilities (Spotlight), Firewall Management or Device Control scopes (those policy types 403).
 - Read-only: the launcher sets falcon-mcp's `--read-only` (no mutating tool is registered) unless
   `MSP_MCP_CROWDSTRIKE_WRITES=1`. falcon-mcp's write tools have no dry run and no audit log of
   their own; only the start with writes on is logged to our audit.log.
 - Modules: `CROWDSTRIKE_MODULES` (comma list; names from `falcon-mcp --help`), else
-  detections, hosts, hostgroups, policies, exclusions, quarantine, ioc, spotlight, discover,
+  detections, hosts, hostgroups, policies, exclusions, quarantine, ioc, discover,
   sensorusage, zerotrustassessment. `rtr` (runs read-only commands on endpoints) is left out.
 - falcon-mcp authenticates at startup and exits on a bad key. `FALCON_BASE_URL` defaults to
   US-1; falconpy follows the redirect to the tenant's own cloud. `FALCON_MCP_EXE` overrides the

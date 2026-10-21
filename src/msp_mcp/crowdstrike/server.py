@@ -23,7 +23,7 @@ from msp_mcp.core.credentials import load_machine_credential
 from msp_mcp.core.guard import audit, writes_enabled
 
 DEFAULT_MODULES = ("detections,hosts,hostgroups,policies,exclusions,quarantine,ioc,"
-                   "spotlight,discover,sensorusage,zerotrustassessment")
+                   "discover,sensorusage,zerotrustassessment")
 
 
 def falcon_exe() -> Path:
