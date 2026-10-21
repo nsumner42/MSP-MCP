@@ -9,6 +9,7 @@ One repo, one server per product, shared code for credentials, rate limiting and
 | ThreatLocker (`msp-mcp-threatlocker`) | working: reads + guarded allow-by-hash |
 | Mimecast (`msp-mcp-mimecast`) | working: reads; guarded release / permit / greylisting bypass |
 | Asset Panda (`msp-mcp-assetpanda`) | working: read-only |
+| Portnox Cloud (`msp-mcp-portnox`) | working: reads; guarded block/unblock device, MAB MAC add/remove (writes tested as dry runs only) |
 | CrowdStrike Falcon | use the official [falcon-mcp](https://github.com/CrowdStrike/falcon-mcp) |
 
 ## Credentials
@@ -52,6 +53,10 @@ claude mcp add mimecast --scope user `
 claude mcp add assetpanda --scope user `
   -e "UV_PROJECT_ENVIRONMENT=$env:LOCALAPPDATA\MSP-MCP\venv" `
   -- uv --directory C:\AIProjects\MSP-MCP run --no-sync python -m msp_mcp.assetpanda.server
+
+claude mcp add portnox --scope user `
+  -e "UV_PROJECT_ENVIRONMENT=$env:LOCALAPPDATA\MSP-MCP\venv" `
+  -- uv --directory C:\AIProjects\MSP-MCP run --no-sync python -m msp_mcp.portnox.server
 ```
 
 Leave out `-e MSP_MCP_DATTO_WRITES=1` for a read-only install. `--no-sync`: the package is installed
@@ -108,6 +113,31 @@ Official OpenAPI specs: the developer portal's data API,
 `https://developer.services.mimecast.com/portals/api/sites/mimecast-prod-apigee-developer/liveportal/apis/<apiId>/download_spec`
 (`cloudgateway`, `policymanagement`, ...).
 
+## Portnox Cloud tools
+
+Reads: `list_sites`, `list_nas` (switches / APs / RADIUS clients), `search_devices` (compact rows; endpoints
+with their account; Portnox's own search over hostname, account, MAC, IP), `get_device` (leaves
+out the ~140 KB Agent-P inventory unless `sections` asks for it),
+`list_mab_accounts` (MAC-based accounts; `mac=` finds who whitelists a MAC), `get_mab_account`,
+`write_status`.
+
+Writes (all dry run by default, need `MSP_MCP_PORTNOX_WRITES=1`):
+- `block_device` (with a reason stored in Portnox) / `unblock_device`.
+- `mab_add_macs` / `mab_remove_macs`: MAC whitelist of an existing MAC-based account, by
+  account name. Remove only sends MACs actually on the account and never an empty list (the API
+  treats an empty list as "remove all").
+
+Credential: `PortnoxApi` (username = a label, password = a Portnox Cloud API token). Tokens are
+made per local Portnox admin (Settings > Profile Settings > ACCOUNT SETTINGS > CLOUD API TOKENS)
+and carry that admin's rights; Entra/Google-federated admins cannot use the API, so use a
+dedicated local admin with only the rights needed. Base URL
+`https://clear.portnox.com:8081/CloudPortalBackEnd` (override with `PORTNOX_API_URL`). Rate limit
+10 requests / 10 s. Device search: leave `Search.Field` out (searches all fields; `Field: 0` is HTTP
+500), PageSize >= 5, MACs only match as `AA:BB:CC:DD:EE:FF`; device ID = `DeviceId` (sent as `EntityId`
+to block/unblock); dates come as `/Date(ms)/` and are converted to ISO. The full Swagger reference is only inside the tenant (Help > API REFERENCE).
+Portnox's own community MCP server (Docker, `portnox/portnox-mcp`, 81 tools, no read-only switch
+or dry run) was the reference for request shapes.
+
 ## ThreatLocker tools
 
 Reads: `organizations`, `find_computers`, `search_action_log` (real blocks by default; host / user /
@@ -115,7 +145,7 @@ path with * wildcards; hash), `get_action`, `file_history`, `approval_requests`,
 `get_approval_request` (ThreatLocker's proposed permit, nothing approved), `computer_groups`,
 `write_status`.
 
-Write: `permit_by_hash` — from an approval request or an action-log block. Always one SHA-256 on
+Write: `permit_by_hash` — from an approval request (an action-log block with no request can be dry-run only: the public API answers HTTP 417 "Invalid ApprovalRequestId"). Always one SHA-256 on
 the one computer that was blocked, as a new application (ThreatLocker's own suggestion, which can
 permit a whole built-in application, is replaced). Dry run by default; the real call must repeat
 the SHA-256 the dry run showed (`confirm_sha256`). Refuses browser extensions, non-pending requests

@@ -359,11 +359,21 @@ async def permit_by_hash(approval_request_id: str | None = None, e_action_log_id
     if warnings:
         summary["warnings"] = warnings
     target = _drop_empty({k: summary.get(k) for k in ("approvalRequestId", "eActionLogId", "hostname", "path", "sha256")})
+    # The public API only permits through an approval request: a block with no request answers
+    # HTTP 417 "Invalid ApprovalRequestId" (with no request and with the empty GUID, 2026-10-17).
+    no_request = ("ThreatLocker's API cannot permit a block that has no approval request. Have the user "
+                  "click 'Request' in the ThreatLocker popup and permit that request by approval_request_id, "
+                  "or permit the block in the ThreatLocker portal.")
+    if e_action_log_id:
+        summary.setdefault("warnings", []).append(no_request)
     if dry_run:
         return {"dryRun": True, "wouldPermit": summary,
                 "next": "show this to the admin; if they approve, call again with dry_run=False and "
                         f"confirm_sha256='{sha}'"}
 
+    if e_action_log_id:
+        audit(SERVER, "permit_by_hash", target, "refused: no approval request")
+        raise ThreatLockerError(no_request)
     require_writes(SERVER, "permit_by_hash", target)
     if (confirm_sha256 or "").strip().upper() != sha:
         audit(SERVER, "permit_by_hash", target, "refused: confirm_sha256 mismatch", {"given": confirm_sha256})
