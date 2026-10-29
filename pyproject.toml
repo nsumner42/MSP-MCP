@@ -1,6 +1,6 @@
 [project]
 name = "msp-mcp"
-version = "0.6.1"
+version = "0.6.2"
 description = "MCP servers for the MSP stack: Datto RMM, ThreatLocker, Mimecast, Asset Panda, Portnox, CrowdStrike Falcon launcher"
 readme = "README.md"
 requires-python = ">=3.12"

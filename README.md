@@ -9,7 +9,7 @@ One repo, one server per product, shared code for credentials, rate limiting and
 | ThreatLocker (`msp-mcp-threatlocker`) | working: reads + guarded allow-by-hash |
 | Mimecast (`msp-mcp-mimecast`) | working: reads; guarded release / permit / greylisting bypass |
 | Asset Panda (`msp-mcp-assetpanda`) | working: read-only |
-| Portnox Cloud (`msp-mcp-portnox`) | working: reads; guarded block/unblock device, MAB MAC add/remove (writes tested as dry runs only) |
+| Portnox Cloud (`msp-mcp-portnox`) | working: reads; guarded block device (unblock = console only), MAB MAC add/remove (writes tested as dry runs only) |
 | CrowdStrike Falcon (`msp-mcp-crowdstrike`) | launcher for the official [falcon-mcp](https://github.com/CrowdStrike/falcon-mcp), read-only by default |
 
 ## Credentials
@@ -119,10 +119,11 @@ Reads: `list_sites`, `list_nas` (switches / APs / RADIUS clients), `search_devic
 with their account; Portnox's own search over hostname, account, MAC, IP), `get_device` (leaves
 out the ~140 KB Agent-P inventory unless `sections` asks for it),
 `list_mab_accounts` (MAC-based accounts; `mac=` finds who whitelists a MAC), `get_mab_account`,
-`write_status`.
+`write_status`, `unblock_device` (changes nothing: the API has no unblock, so it says where in
+the console to do it: Accounts > expand the account row > device > Device Details > Unblock).
 
 Writes (all dry run by default, need `MSP_MCP_PORTNOX_WRITES=1`):
-- `block_device` (with a reason stored in Portnox) / `unblock_device`.
+- `block_device` (with a reason stored in Portnox). Only the console can undo it.
 - `mab_add_macs` / `mab_remove_macs`: MAC whitelist of an existing MAC-based account, by
   account name. Remove only sends MACs actually on the account and never an empty list (the API
   treats an empty list as "remove all").
@@ -134,7 +135,8 @@ dedicated local admin with only the rights needed. Base URL
 `https://clear.portnox.com:8081/CloudPortalBackEnd` (override with `PORTNOX_API_URL`). Rate limit
 10 requests / 10 s. Device search: leave `Search.Field` out (searches all fields; `Field: 0` is HTTP
 500), PageSize >= 5, MACs only match as `AA:BB:CC:DD:EE:FF`; device ID = `DeviceId` (sent as `EntityId`
-to block/unblock); dates come as `/Date(ms)/` and are converted to ISO. The full Swagger reference is only inside the tenant (Help > API REFERENCE).
+to block); dates come as `/Date(ms)/` and are converted to ISO. The full Swagger reference is public at
+`https://cloud.portnox.com/restapi/doc` (26 operations; no unblock, no disconnect/re-auth: `/api/device/unblock` = 405, 2026-10-29).
 Portnox's own community MCP server (Docker, `portnox/portnox-mcp`, 81 tools, no read-only switch
 or dry run) was the reference for request shapes.
 
