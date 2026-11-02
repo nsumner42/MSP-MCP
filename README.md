@@ -10,6 +10,7 @@ One repo, one server per product, shared code for credentials, rate limiting and
 | Mimecast (`msp-mcp-mimecast`) | working: reads; guarded release / permit / greylisting bypass |
 | Asset Panda (`msp-mcp-assetpanda`) | working: read-only |
 | Portnox Cloud (`msp-mcp-portnox`) | working: reads; guarded block device (unblock = console only), MAB MAC add/remove (writes tested as dry runs only) |
+| ClouDNS (`msp-mcp-cloudns`) | built 0.7.0: reads; guarded add / update / delete record |
 | CrowdStrike Falcon (`msp-mcp-crowdstrike`) | launcher for the official [falcon-mcp](https://github.com/CrowdStrike/falcon-mcp), read-only by default |
 
 ## Credentials
@@ -57,6 +58,11 @@ claude mcp add assetpanda --scope user `
 claude mcp add portnox --scope user `
   -e "UV_PROJECT_ENVIRONMENT=$env:LOCALAPPDATA\MSP-MCP\venv" `
   -- uv --directory C:\AIProjects\MSP-MCP run --no-sync python -m msp_mcp.portnox.server
+
+claude mcp add cloudns --scope user `
+  -e "UV_PROJECT_ENVIRONMENT=$env:LOCALAPPDATA\MSP-MCP\venv" `
+  -e MSP_MCP_CLOUDNS_WRITES=1 `
+  -- uv --directory C:\AIProjects\MSP-MCP run --no-sync python -m msp_mcp.cloudns.server
 ```
 
 Leave out `-e MSP_MCP_DATTO_WRITES=1` for a read-only install. `--no-sync`: the package is installed
@@ -139,6 +145,25 @@ to block); dates come as `/Date(ms)/` and are converted to ISO. The full Swagger
 `https://cloud.portnox.com/restapi/doc` (26 operations; no unblock, no disconnect/re-auth: `/api/device/unblock` = 405, 2026-10-29).
 Portnox's own community MCP server (Docker, `portnox/portnox-mcp`, 81 tools, no read-only switch
 or dry run) was the reference for request shapes.
+
+## ClouDNS tools
+
+Reads: `list_zones`, `get_records` (filter by host and/or type; host `@` = zone root),
+`propagation_status` (has the last change reached every ClouDNS name server), `write_status`.
+Writes (dry run by default; the dry run lists the records already at that host and warns about
+duplicates, CNAME clashes and a second SPF): `add_record`, `update_record`, `delete_record`.
+TTL must be one ClouDNS accepts (60, 300, 900, 1800, 3600, ...).
+
+Credential: `ClouDNSApi`, a main API user (ClouDNS: API & Resellers), username = its `auth-id`,
+password = its API password. API users can be limited to allowed IPs: add the public IP of every
+computer that runs the server, or calls fail with an auth error.
+
+```powershell
+. C:\AIProjects\Credential.ps1
+$id = Read-Host 'ClouDNS API auth-id'
+$pw = Read-Host 'ClouDNS API password' -AsSecureString
+Save-SharedCredential -Name 'ClouDNSApi' -Credential ([pscredential]::new($id, $pw))
+```
 
 ## CrowdStrike Falcon
 
